@@ -52,4 +52,50 @@ const userSignup = asyncErrorHandler(async (req, res, next) => {
   });
 });
 
-export { userSignup };
+const userLogin = asyncErrorHandler(async (req, res, next) => {
+  const { email, password } = req.body;
+
+  if (!user || !password) {
+    return next(new AppError('Email or Password is missing', 404));
+  }
+
+  const user = await User.findOne({ email });
+
+  const checkPassword = bcrypt.compare(password, user.password);
+
+  if (!checkPassword) {
+    return next(new AppError('Email or Password may be incorrect', 404));
+  }
+
+  const token = jwt.sign(
+    {
+      _id: user._id,
+      name: user.name,
+      plan: user.plan,
+    },
+    process.env.JWT_SECRET,
+    {
+      expiresIn: '5d',
+    }
+  );
+
+  res.cookie('access_token', token, {
+    maxAge: 10 * 24 * 60 * 60 * 1000,
+    httpOnly: true,
+  });
+
+  res.status(200).json({
+    message: 'ok',
+    data: {
+      user: {
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        plan: user.plan,
+      },
+      token: token,
+    },
+  });
+});
+
+export { userSignup, userLogin };
